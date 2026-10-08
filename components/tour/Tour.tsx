@@ -19,6 +19,8 @@ const SNAP_DELAY = 160; // g'ildirak to'xtagach shuncha ms o'tib eng yaqin xonag
 const TOP_DWELL = 350; // ekran tepasida shuncha ms tursa — bosh sahifa (tasodifiy o'tib ketishdan himoya)
 const LEAVE_DELAY = 200; // kursor sahifadan tepaga chiqib ketsa — shuncha ms ichida qaytmasa, bosh sahifa
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+// Telefonda bosish ham soxta "mousemove" yuboradi — sichqoncha mantig'i faqat haqiqiy sichqonchada ishlasin
+const hasMouse = () => window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 // Ekranning yuqori qismi: shu yerda tursa yoki shu yerdan sahifadan chiqib ketsa — bosh sahifa
 const inTopBand = (y: number) => y < Math.max(64, window.innerHeight * 0.08);
 const activeOf = (stop: number) => (stop >= 2 ? stop - 2 : LOBBY_INDEX);
@@ -216,9 +218,10 @@ export default function Tour() {
     // Tez harakatda Chrome chiqish nuqtasini 0 emas, 10–40px kabi beradi — shuning uchun butun yuqori qism.
     const onMouseLeave = (e: MouseEvent) => {
       cancelTop();
-      if (phaseRef.current === "tour" && inTopBand(e.clientY)) topTimer = window.setTimeout(goHome, LEAVE_DELAY);
+      if (hasMouse() && phaseRef.current === "tour" && inTopBand(e.clientY)) topTimer = window.setTimeout(goHome, LEAVE_DELAY);
     };
     const onMouseMove = (e: MouseEvent) => {
+      if (!hasMouse()) return;
       if (busy() || phaseRef.current !== "tour") {
         lastZone = -1;
         return cancelTop();
@@ -235,11 +238,23 @@ export default function Tour() {
       if (!first) goStop(z);
     };
 
+    // Barmoq: chapga yoki tepaga surish — oldinga, o'ngga yoki pastga — orqaga.
+    // Kartalar qatoridan boshlangan surish — qatorni aylantirish uchun, kamerani yurgizmaydi.
+    let startX = 0;
     let startY = 0;
-    const onTouchStart = (e: TouchEvent) => (startY = e.touches[0].clientY);
+    let fromDock = false;
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      fromDock = !!(e.target as Element | null)?.closest?.(".dock");
+    };
     const onTouchEnd = (e: TouchEvent) => {
-      const dy = startY - e.changedTouches[0].clientY;
-      if (!busy() && Math.abs(dy) > 50) goStop(stopRef.current + (dy > 0 ? 1 : -1));
+      if (busy() || fromDock) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return; // oddiy bosish — surish emas
+      const forward = Math.abs(dx) > Math.abs(dy) ? dx < 0 : dy < 0;
+      goStop(stopRef.current + (forward ? 1 : -1));
     };
 
     window.addEventListener("wheel", onWheel, { passive: true });
@@ -336,10 +351,26 @@ export default function Tour() {
               ) : (
                 <>
                   <span className="only-hover">Sichqonchani o‘ngga suring — kamera xonalar bo‘ylab yuradi. Tepaga — bosh sahifa.</span>
-                  <span className="only-touch">Bo‘limni tanlang — kamera sizni o‘sha xonaga olib boradi.</span>
+                  <span className="only-touch">Chapga suring — kamera xonalar bo‘ylab yuradi.</span>
                 </>
               )}
             </p>
+
+            {/* Telefonda video ostida bo'sh joy bor — bo'lim haqida qisqacha (kompyuterda videoni to'smaslik uchun yo'q) */}
+            {dept && (
+              <div className="hud-extra only-touch rise mt-4" style={{ "--d": "150ms" } as CSSProperties}>
+                <p className="text-sm leading-relaxed text-white/70">{dept.description}</p>
+                <dl className="mt-4 grid grid-cols-3 gap-3">
+                  {dept.stats.map((s) => (
+                    <div key={s.label}>
+                      <dt className="sr-only">{s.label}</dt>
+                      <dd className="font-display text-lg leading-tight">{s.value}</dd>
+                      <dd className="mt-1 text-[11px] leading-snug text-white/55">{s.label}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
 
             {dept && (
               <button onClick={() => open(active)} className="cta only-touch rise mt-5" style={{ "--d": "180ms" } as CSSProperties}>

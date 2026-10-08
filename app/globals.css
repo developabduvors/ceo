@@ -60,7 +60,9 @@ body {
 .reveal.is-in { opacity: 1; transform: none; }
 
 /* ───────── Tour: video fon ───────── */
-.tour { position: fixed; inset: 0; overflow: clip; /* clip — JS ham siljita olmaydi */ background: #000; transition: --accent 0.6s; }
+.tour { position: fixed; inset: 0; overflow: clip; /* clip — JS ham siljita olmaydi */
+  touch-action: none; /* surish sahifani siljitmasin — kamerani boshqaradi */
+  overscroll-behavior: none; background: #000; transition: --accent 0.6s; }
 
 .tour-backdrop {
   position: absolute; inset: -10%; display: none;
@@ -174,6 +176,7 @@ body {
 .dock {
   position: relative; /* card.offsetLeft dock'ga nisbatan hisoblansin */
   display: flex; gap: 0.6rem; overflow-x: auto; scroll-snap-type: x mandatory;
+  touch-action: pan-x; /* kartalar qatorini barmoq bilan aylantirish mumkin */
   max-width: 72rem; margin: 0 auto; scrollbar-width: none;
 }
 @media (min-width: 768px) { .dock { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; overflow: visible; } }
@@ -219,8 +222,12 @@ body {
   }
   .tour-shade { display: none; }
   .hud { top: calc(4.5rem + 56.25vw + 1.5rem); bottom: auto; }
+  .hud-title { font-size: clamp(2.25rem, 11vw, 3.25rem); }
   .intro { justify-content: flex-end; padding-bottom: 12svh; }
 }
+
+/* Past telefonlarda (iPhone SE va h.k.) qo'shimcha ma'lumot kartalar ustiga chiqib ketmasin */
+@media (max-height: 760px) { .hud-extra { display: none !important; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
