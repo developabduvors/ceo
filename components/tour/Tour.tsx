@@ -85,6 +85,20 @@ export default function Tour() {
     syncHash();
   };
 
+  // iOS Safari videoni o'zi oldindan tayyorlamaydi (preload e'tiborsiz) — "loadeddata" kelmaydi va
+  // "Kirish" tugmasi "Yuklanmoqda"da qotib qoladi. Ovozsiz videoga avtomatik o'ynashga ruxsat bor:
+  // bir lahza play/pause qilib kadrlarni tayyorlatamiz. Baribir kelmasa — 4 s dan keyin tugmani ochamiz
+  // (bosilganda play() foydalanuvchi harakati bilan chaqiriladi va video yuklanadi).
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !src) return;
+    v.play()
+      .then(() => phaseRef.current === "intro" && v.pause())
+      .catch(() => {});
+    const fallback = window.setTimeout(() => setReady(true), 4000);
+    return () => clearTimeout(fallback);
+  }, [src]);
+
   // Next (cacheComponents) tur sahifasini xotirada saqlaydi: bo'limdan qaytilganda komponent qayta
   // yaratilmaydi — holat eski ("leaving", qora parda) qoladi, video ham qayta yuklanmaydi.
   // Sahifa qayta ko'ringanda effektlar qayta ishga tushadi — shu yerda holatni URL bo'yicha tiklaymiz.

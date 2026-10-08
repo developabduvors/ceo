@@ -2,7 +2,7 @@
 // Raqamlar (stats) hozircha namunaviy; backend tayyor bo'lgach API'dan olinadi.
 
 // ?v= — video almashtirilganda brauzer keshi eski faylni bermasligi uchun
-export const VIDEO = { sd: "/media/tour.mp4?v=9", hd: "/media/tour-hd.mp4?v=9" }; // gemini_generated_video_01110108.mp4: lanczos + yengil unsharp, AI yo'q
+export const VIDEO = { sd: "/media/tour.mp4?v=10", hd: "/media/tour-hd.mp4?v=10" }; // gemini_generated_video_01110108.mp4: lanczos + yengil unsharp, AI yo'q
 
 export type Stat = { value: string; label: string };
 export type Service = { title: string; text: string };

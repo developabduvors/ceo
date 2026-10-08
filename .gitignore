@@ -42,3 +42,6 @@ next-env.d.ts
 
 # video tayyorlash yordamchi fayli
 scripts/contact-sheet.jpg
+
+.vercel
+.env*
