@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# video tayyorlash yordamchi fayli
+scripts/contact-sheet.jpg

@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     agentFeedback: true,
   },
   cacheComponents: true,
+  images: {
+    qualities: [75, 90], // bo'lim posterlari 90 da — tiniqroq
+  },
   partialPrefetching: true,
   turbopack: {
     rules: {
