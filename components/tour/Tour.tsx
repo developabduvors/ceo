@@ -15,6 +15,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const STOPS = [0, LOBBY.time, ...DEPARTMENTS.map((d) => d.time)];
 const LAST = STOPS.length - 1;
 const SCRUB = 0.004; // g'ildirakning 1px = 0.004s video (sichqonchaning bitta "tiq"i ≈ 0.4s)
+const TOUCH_SCRUB = 0.006; // barmoqning 1px = 0.006s video (≈250px surish — bitta xona)
+const DRAG_START = 10; // barmoq shuncha px siljimaguncha — bu oddiy bosish, kamera qimirlamaydi
 const SNAP_DELAY = 160; // g'ildirak to'xtagach shuncha ms o'tib eng yaqin xonaga boriladi
 const TOP_DWELL = 350; // ekran tepasida shuncha ms tursa — bosh sahifa (tasodifiy o'tib ketishdan himoya)
 const LEAVE_DELAY = 200; // kursor sahifadan tepaga chiqib ketsa — shuncha ms ichida qaytmasa, bosh sahifa
@@ -173,27 +175,34 @@ export default function Tour() {
     if (!ready) return;
     let snapTimer = 0;
     let dir = 0;
-    const busy = () => phaseRef.current === "entering" || phaseRef.current === "leaving";
+    // "Kirish" parvozi davomida ham boshqarish mumkin (u to'xtatiladi) — faqat bo'limga o'tayotganda emas
+    const busy = () => phaseRef.current === "leaving";
 
-    const onWheel = (e: WheelEvent) => {
-      if (busy() || Math.abs(e.deltaY) < 2) return;
-      dir = Math.sign(e.deltaY);
-      const t = clamp(scrubRef.current + e.deltaY * SCRUB, 0, STOPS[LAST]);
+    // G'ildirak va barmoq uchun umumiy: kamerani dt soniyaga suradi; to'xtagach snap() xonaga olib boradi
+    const scrub = (dt: number) => {
+      dir = Math.sign(dt);
+      const t = clamp(scrubRef.current + dt, 0, STOPS[LAST]);
       scrubRef.current = t;
 
-      if (phaseRef.current === "intro" && dir > 0) setPhase("tour"); // bosh sahifadan pastga — ichkariga
+      // bosh sahifadan oldinga — ichkariga; "Kirish" parvozi to'xtatildi — endi tur
+      if (phaseRef.current === "entering" || (phaseRef.current === "intro" && dir > 0)) setPhase("tour");
       // HUD'da kamera yaqinlashayotgan xona ko'rinadi
       const near = STOPS.reduce((best, x, i) => (Math.abs(x - t) < Math.abs(STOPS[best] - t) ? i : best), 0);
       if (near >= 1) setActive(activeOf(near));
       goTo(t, 4);
+    };
+    // yo'nalish bo'yicha keyingi xona: oldinga yoki orqaga
+    const snap = () => {
+      const t = scrubRef.current;
+      const next = dir > 0 ? STOPS.findIndex((x) => x > t - 0.001) : STOPS.findLastIndex((x) => x < t + 0.001);
+      goStop(next < 0 ? (dir > 0 ? LAST : 0) : next);
+    };
 
+    const onWheel = (e: WheelEvent) => {
+      if (busy() || Math.abs(e.deltaY) < 2) return;
+      scrub(e.deltaY * SCRUB);
       clearTimeout(snapTimer);
-      snapTimer = window.setTimeout(() => {
-        // yo'nalish bo'yicha keyingi xona: pastga — oldinga, tepaga — orqaga
-        const next =
-          dir > 0 ? STOPS.findIndex((x) => x > t - 0.001) : STOPS.findLastIndex((x) => x < t + 0.001);
-        goStop(next < 0 ? (dir > 0 ? LAST : 0) : next);
-      }, SNAP_DELAY);
+      snapTimer = window.setTimeout(snap, SNAP_DELAY);
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -238,23 +247,44 @@ export default function Tour() {
       if (!first) goStop(z);
     };
 
-    // Barmoq: chapga yoki tepaga surish — oldinga, o'ngga yoki pastga — orqaga.
+    // Barmoq: kamera barmoqqa ergashadi (g'ildirak kabi) — chapga yoki tepaga sudrash oldinga,
+    // o'ngga yoki pastga — orqaga. Qo'yib yuborilganda sudrash yo'nalishidagi xonaga boradi.
     // Kartalar qatoridan boshlangan surish — qatorni aylantirish uchun, kamerani yurgizmaydi.
+    // touch* emas, pointer* hodisalari: barmoq bir lahza to'xtab tursa brauzer uni "long-press" deb
+    // oladi va touchend kelmay qoladi (kamera xonaga yetmay qotardi) — pointerup esa doim keladi.
     let startX = 0;
     let startY = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let axis: "x" | "y" | null = null; // sudrash boshlangach qaysi o'q bo'yicha — oxirigacha o'zgarmaydi
     let fromDock = false;
-    const onTouchStart = (e: TouchEvent) => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+    const isFinger = (e: PointerEvent) => e.pointerType !== "mouse" && e.isPrimary; // ikkinchi barmoq — e'tiborsiz
+    const onFingerDown = (e: PointerEvent) => {
+      if (!isFinger(e)) return;
+      startX = lastX = e.clientX;
+      startY = lastY = e.clientY;
+      axis = null;
       fromDock = !!(e.target as Element | null)?.closest?.(".dock");
     };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (busy() || fromDock) return;
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = e.changedTouches[0].clientY - startY;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 40) return; // oddiy bosish — surish emas
-      const forward = Math.abs(dx) > Math.abs(dy) ? dx < 0 : dy < 0;
-      goStop(stopRef.current + (forward ? 1 : -1));
+    const onFingerMove = (e: PointerEvent) => {
+      if (!isFinger(e) || busy() || fromDock) return;
+      const { clientX: x, clientY: y } = e;
+      if (!axis) {
+        const dx = x - startX;
+        const dy = y - startY;
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_START) return; // hali oddiy bosish
+        axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        clearTimeout(snapTimer);
+      }
+      const d = axis === "x" ? lastX - x : lastY - y; // chapga/tepaga — musbat (oldinga)
+      lastX = x;
+      lastY = y;
+      if (d) scrub(d * TOUCH_SCRUB);
+    };
+    const onFingerUp = (e: PointerEvent) => {
+      if (!isFinger(e) || !axis) return;
+      axis = null;
+      if (!busy()) snap();
     };
 
     window.addEventListener("wheel", onWheel, { passive: true });
@@ -262,8 +292,10 @@ export default function Tour() {
     document.documentElement.addEventListener("mouseleave", onMouseLeave);
     document.documentElement.addEventListener("mouseenter", cancelTop); // tezda qaytib kirsa — bekor
     window.addEventListener("keydown", onKey);
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("pointerdown", onFingerDown);
+    window.addEventListener("pointermove", onFingerMove);
+    window.addEventListener("pointerup", onFingerUp);
+    window.addEventListener("pointercancel", onFingerUp);
     return () => {
       clearTimeout(snapTimer);
       cancelTop();
@@ -272,8 +304,10 @@ export default function Tour() {
       document.documentElement.removeEventListener("mouseleave", onMouseLeave);
       document.documentElement.removeEventListener("mouseenter", cancelTop);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("pointerdown", onFingerDown);
+      window.removeEventListener("pointermove", onFingerMove);
+      window.removeEventListener("pointerup", onFingerUp);
+      window.removeEventListener("pointercancel", onFingerUp);
     };
   }, [ready, goTo, goStop, setPhase, zoneAt]);
 
@@ -297,7 +331,7 @@ export default function Tour() {
       <div className="tour-shade" aria-hidden />
 
       {/* ───── Header ───── */}
-      <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10">
+      <header className="tour-header fixed inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-5 sm:px-10">
         <button onClick={inTour ? exit : undefined} className="flex items-center gap-3 font-display text-sm tracking-[0.25em]">
           <span className="logo-mark" aria-hidden />
           CEO&nbsp;AI

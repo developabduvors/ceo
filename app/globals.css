@@ -211,6 +211,18 @@ body {
 
 /* ───────── Bo'lim sahifasi ───────── */
 .kenburns { animation: kenburns 2.4s var(--ease) both; }
+
+.back-btn {
+  position: fixed; z-index: 40; top: 1rem; right: 1.25rem;
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.1rem; border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  background: rgb(0 0 0 / 0.45); backdrop-filter: blur(12px);
+  font-size: 0.85rem; font-weight: 600; letter-spacing: 0.08em;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+.back-btn:hover { background: #fff; color: #0b0b0b; border-color: #fff; }
+@media (min-width: 640px) { .back-btn { top: 1.25rem; right: 2.5rem; } }
 .draw-line { transform-origin: left; animation: draw 1.4s var(--ease) both; animation-delay: var(--d, 0ms); }
 
 /* ───── Vertikal ekran (telefon): video kesilmaydi, to'liq 16:9 ko'rinadi ───── */
@@ -228,6 +240,20 @@ body {
 
 /* Past telefonlarda (iPhone SE va h.k.) qo'shimcha ma'lumot kartalar ustiga chiqib ketmasin */
 @media (max-height: 760px) { .hud-extra { display: none !important; } }
+
+/* ───── Yotiq telefon (balandligi ~400px): HUD va kartalar videoning yarmini to'smasin ───── */
+@media (max-height: 500px) and (min-aspect-ratio: 1/1) {
+  .tour-header { padding-block: 0.75rem; }
+  .hud { bottom: 5rem; max-width: 26rem; }
+  .hud-title { font-size: 2rem; margin: 0.2rem 0 0.3rem; }
+  .hud .cta { margin-top: 0.75rem; padding: 0.5rem 1.1rem; font-size: 0.8rem; }
+  .dock-wrap { bottom: 0.75rem; }
+  .dock { gap: 0.5rem; }
+  .dock-card { padding: 0.5rem 0.85rem; border-radius: 0.85rem; }
+  .dock-card > span:first-child, .dock-short, .dock-go { display: none; } /* faqat nomi qoladi */
+  .intro { padding-bottom: 6svh; gap: 0.6rem; }
+  .intro-title { font-size: clamp(2.5rem, 8vw, 4.5rem); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

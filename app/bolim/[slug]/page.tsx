@@ -1,6 +1,7 @@
 import { Suspense, type CSSProperties } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExitToTour } from "@/components/ExitToTour";
 import { Reveal } from "@/components/Reveal";
@@ -37,6 +38,10 @@ async function Department({ params }: Pick<PageProps<"/bolim/[slug]">, "params">
     <main style={{ "--accent": d.accent } as CSSProperties}>
       {/* Chiqish: sichqoncha ekran tepasiga / tepada g'ildirak tepaga / Esc — turga, shu xonaga */}
       <ExitToTour slug={d.slug} />
+      {/* Ko'rinadigan chiqish — imo-ishoralarni bilmagan foydalanuvchi uchun; fixed: pastga aylantirilganda ham turadi */}
+      <Link href={`/#${d.slug}`} className="back-btn rise" style={{ "--d": "400ms" } as CSSProperties}>
+        <span aria-hidden>←</span> Orqaga
+      </Link>
       {/* ───── Hero: videodagi o'sha xona kadri ───── */}
       <section className="relative flex h-[92svh] min-h-[560px] flex-col justify-end overflow-hidden">
         <Image src={d.poster} alt={`${d.name} bo‘limi`} fill priority sizes="100vw" quality={90} className="kenburns object-cover" />
@@ -62,12 +67,13 @@ async function Department({ params }: Pick<PageProps<"/bolim/[slug]">, "params">
             {d.tagline}
           </p>
           <div className="draw-line mt-10 h-px bg-white/25" style={{ "--d": "500ms" } as CSSProperties} />
-          <dl className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
+          {/* telefonda ham 3 ustun — ustma-ust 3 qator hero'dan sig'may, sarlavhani tepaga itarib yuborardi */}
+          <dl className="mt-8 grid grid-cols-3 gap-3 sm:gap-6">
             {d.stats.map((s, i) => (
               <div key={s.label} className="rise" style={{ "--d": `${600 + i * 100}ms` } as CSSProperties}>
                 <dt className="sr-only">{s.label}</dt>
-                <dd className="font-display text-3xl sm:text-4xl">{s.value}</dd>
-                <dd className="mt-1 text-sm text-white/60">{s.label}</dd>
+                <dd className="font-display text-lg sm:text-4xl">{s.value}</dd>
+                <dd className="mt-1 text-xs text-white/60 sm:text-sm">{s.label}</dd>
               </div>
             ))}
           </dl>
